@@ -2,6 +2,8 @@
 
 Aplicación de escritorio para convertir imágenes JPG, PNG, BMP, GIF y WebP en vectores editables. Todo el procesamiento se realiza localmente.
 
+![Captura de Vectoria](docs/screenshot.png)
+
 El modo **Logo** detecta automáticamente los archivos que son un logo de tintas planas —con transparencia, sobre fondo sólido, y de una o varias tintas— y los trata con un motor propio pensado para tipografía. Las ilustraciones y fotografías siguen usando VTracer.
 
 ## Cómo funciona el motor de logos
