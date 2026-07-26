@@ -1,0 +1,16 @@
+node_modules/
+tmp/
+artifacts/
+output/
+dist/
+*.log
+
+# Sistema operativo
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editores
+.vscode/
+.idea/
+*.swp

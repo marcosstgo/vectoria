@@ -1,0 +1,24 @@
+{
+  "name": "vectoria",
+  "version": "0.3.0",
+  "description": "Vectorizador local de imágenes con exportación SVG y PDF",
+  "main": "src/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "check": "node scripts/check.mjs && node scripts/test-logo-tracer.cjs",
+    "test:logo": "node scripts/test-logo-tracer.cjs",
+    "test:pdf": "node scripts/export-smoke.cjs",
+    "bench": "node scripts/benchmark-tracer.cjs"
+  },
+  "dependencies": {
+    "@neplex/vectorizer": "^0.1.0",
+    "imagetracerjs": "^1.2.6",
+    "pdfkit": "^0.17.2",
+    "svg-to-pdfkit": "^0.1.8"
+  },
+  "devDependencies": {
+    "electron": "^39.8.10"
+  }
+}

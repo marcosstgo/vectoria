@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vectoria</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="titlebar">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32"><path d="M6 24 14 6l4 11 8-8-4 17H9Z"/><circle cx="14" cy="6" r="2.4"/><circle cx="26" cy="9" r="2.4"/><circle cx="22" cy="26" r="2.4"/><circle cx="6" cy="24" r="2.4"/></svg>
+      </div>
+      <div class="brand-copy"><strong>Vectoria</strong><span>estudio de trazado</span></div>
+      <span id="appVersion" class="app-version" title="Versión instalada">—</span>
+      <div class="titlebar-status"><span class="status-dot"></span><span>Procesamiento local</span></div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="rail" aria-label="Acciones principales">
+        <button id="openBtn" class="rail-action active" type="button" title="Abrir imagen">
+          <svg viewBox="0 0 24 24"><path d="M4 5h6l2 2h8v12H4z"/><path d="m4 10 4-3"/></svg><span>Abrir</span>
+        </button>
+        <button id="newBtn" class="rail-action" type="button" title="Nuevo proyecto">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Nuevo</span>
+        </button>
+        <div class="rail-spacer"></div>
+        <button id="helpBtn" class="rail-action" type="button" title="Guía rápida">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M9.8 9a2.4 2.4 0 1 1 3.4 2.2c-.8.4-1.2.9-1.2 1.8M12 16.5h.01"/></svg><span>Guía</span>
+        </button>
+      </aside>
+
+      <section class="workspace">
+        <div class="workspace-head">
+          <div>
+            <p class="eyebrow">Mesa de trabajo</p>
+            <h1 id="documentTitle">Una imagen, curvas limpias.</h1>
+          </div>
+          <div class="view-tabs" role="tablist" aria-label="Vista">
+            <button class="view-tab" data-view="original" type="button">Original</button>
+            <button class="view-tab active" data-view="compare" type="button">Comparar</button>
+            <button class="view-tab" data-view="vector" type="button">Vector</button>
+            <button class="view-tab" data-view="diff" type="button" title="Rojo: el trazado añade. Naranja: le falta.">Diferencias</button>
+          </div>
+        </div>
+
+        <div id="stage" class="stage is-empty">
+          <div id="dropzone" class="dropzone">
+            <div class="drop-glyph" aria-hidden="true">
+              <svg viewBox="0 0 80 80"><path d="M18 57V24h44v33z"/><path d="m23 50 11-12 9 8 7-6 8 10"/><circle cx="49" cy="33" r="4"/></svg>
+            </div>
+            <p class="drop-kicker">Empieza con el original</p>
+            <h2>Suelta aquí un JPG o PNG</h2>
+            <p>También puedes usar BMP, GIF o WebP. Nada sale de tu computadora.</p>
+            <button id="chooseBtn" class="primary-btn" type="button">Elegir imagen</button>
+          </div>
+
+          <div id="canvasArea" class="canvas-area" hidden>
+            <div id="artboard" class="artboard view-compare">
+              <img id="originalImage" alt="Imagen original" draggable="false" />
+              <div id="vectorLayer" class="vector-layer" aria-label="Resultado vectorial"></div>
+              <canvas id="diffLayer" class="diff-layer" aria-label="Diferencias con el original"></canvas>
+              <div id="compareLine" class="compare-line"><span></span></div>
+              <input id="compareRange" class="compare-range" type="range" min="0" max="100" value="50" aria-label="Comparar original y vector" />
+            </div>
+            <div class="canvas-footer">
+              <div class="legend"><span><i class="legend-original"></i>Original</span><span><i class="legend-vector"></i>Vector</span></div>
+              <div id="diffLegend" class="diff-legend"><span><i style="background:#e83a3a"></i>El trazado añade</span><span><i style="background:#faa620"></i>Le falta</span><output id="diffSummary" hidden></output></div>
+              <div class="canvas-background" role="group" aria-label="Fondo de previsualización">
+                <span>Fondo</span>
+                <button class="canvas-bg-btn active" data-canvas-bg="checker" type="button" title="Transparencia" aria-label="Fondo cuadriculado"><i class="bg-checker"></i></button>
+                <button class="canvas-bg-btn" data-canvas-bg="light" type="button" title="Fondo claro" aria-label="Fondo claro"><i class="bg-light"></i></button>
+                <button class="canvas-bg-btn" data-canvas-bg="dark" type="button" title="Fondo oscuro" aria-label="Fondo oscuro"><i class="bg-dark"></i></button>
+                <label class="canvas-color" title="Elegir otro color" aria-label="Color personalizado"><input id="canvasColor" type="color" value="#7b4fb3"/><i></i></label>
+                <em>solo vista</em>
+              </div>
+              <label class="zoom-control">Zoom <input id="zoomRange" type="range" min="25" max="200" value="100"/><output id="zoomValue">100%</output></label>
+            </div>
+          </div>
+
+          <div id="processing" class="processing" hidden>
+            <div class="processing-mark"><span></span><span></span><span></span></div>
+            <strong>Construyendo las curvas…</strong>
+            <p>Analizando color, bordes y formas.</p>
+          </div>
+        </div>
+      </section>
+
+      <aside class="inspector">
+        <div class="inspector-head">
+          <p class="eyebrow">Ajustes</p>
+          <span id="autoBadge" class="auto-badge">Automático</span>
+        </div>
+
+        <section class="control-section">
+          <label class="section-label" for="preset">Tipo de imagen</label>
+          <div class="preset-grid" id="preset">
+            <button class="preset-card active" data-preset="logo" type="button"><svg viewBox="0 0 24 24"><path d="m12 3 7 5v8l-7 5-7-5V8z"/><path d="m8 14 3-6 3 6"/></svg><span>Logo</span></button>
+            <button class="preset-card" data-preset="drawing" type="button"><svg viewBox="0 0 24 24"><path d="m5 18 3-1 10-10-2-2L6 15z"/><path d="M14 7l2 2"/></svg><span>Dibujo</span></button>
+            <button class="preset-card" data-preset="photo" type="button"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m6 17 5-5 3 3 2-2 3 4"/></svg><span>Foto</span></button>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <div class="control-heading"><label for="colorsRange">Colores</label><output id="colorsValue">8</output></div>
+          <input id="colorsRange" class="accent-range" type="range" min="2" max="32" value="8" />
+          <div id="palette" class="palette" aria-label="Paleta detectada"><span style="--swatch:#142a33"></span><span style="--swatch:#246b72"></span><span style="--swatch:#e4a94b"></span><span style="--swatch:#f4f7f5"></span></div>
+        </section>
+
+        <section class="control-section">
+          <div class="control-heading"><label for="detailRange">Detalle</label><output id="detailValue">Equilibrado</output></div>
+          <input id="detailRange" class="accent-range" type="range" min="0" max="2" value="1" step="1" />
+          <div class="range-labels"><span>Simple</span><span>Preciso</span></div>
+        </section>
+
+        <section class="control-section">
+          <div class="control-heading"><label for="regularizeRange">Regularización</label><output id="regularizeValue">Normal</output></div>
+          <input id="regularizeRange" class="accent-range" type="range" min="0" max="4" value="2" step="1" />
+          <div class="range-labels"><span>Fiel al archivo</span><span>Idealizar</span></div>
+          <p class="control-note">Corrige la ondulación del trazo y convierte en círculos o elipses exactos las formas que lo son. Baja esto si necesitas reproducir el archivo tal cual.</p>
+        </section>
+
+        <section class="control-section compact">
+          <label class="toggle-row"><span><strong>Suavizar bordes</strong><small>Reduce el ruido del JPG</small></span><input id="smoothToggle" type="checkbox" checked/><i></i></label>
+          <label class="toggle-row"><span><strong>Quitar fondo</strong><small>Detecta el color de las esquinas</small></span><input id="backgroundToggle" type="checkbox"/><i></i></label>
+        </section>
+
+        <section id="resultStats" class="result-stats" hidden>
+          <div><strong id="shapeCount">—</strong><span>formas</span></div>
+          <div><strong id="nodeCount">—</strong><span>nodos</span></div>
+          <div><strong id="resultSize">—</strong><span>SVG</span></div>
+        </section>
+        <p id="engineInfo" class="engine-info" hidden><span></span><b>VTracer · curvas spline</b></p>
+
+        <div class="inspector-actions">
+          <button id="traceBtn" class="secondary-btn" type="button" disabled>Actualizar trazado</button>
+          <button id="exportBtn" class="primary-btn wide" type="button" disabled>Exportar resultado <svg viewBox="0 0 24 24"><path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14"/></svg></button>
+        </div>
+      </aside>
+    </main>
+
+    <div id="exportDialog" class="modal-backdrop" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+        <button id="closeExport" class="modal-close" type="button" aria-label="Cerrar">×</button>
+        <p class="eyebrow">Resultado listo</p>
+        <h2 id="exportTitle">Elige un formato vectorial</h2>
+        <p class="modal-intro">Ambos formatos conservan curvas y colores editables.</p>
+        <div class="format-grid">
+          <button class="format-card" data-format="svg" type="button"><span class="format-icon">SVG</span><strong>Guardar SVG</strong><small>Ideal para Illustrator, CorelDRAW, Inkscape y web.</small></button>
+          <button class="format-card" data-format="pdf" type="button"><span class="format-icon pdf">PDF</span><strong>Guardar PDF</strong><small>Vectorial, portátil y listo para impresión.</small></button>
+        </div>
+      </section>
+    </div>
+
+    <div id="helpDialog" class="modal-backdrop" hidden>
+      <section class="modal help-modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+        <button id="closeHelp" class="modal-close" type="button" aria-label="Cerrar">×</button>
+        <p class="eyebrow">Guía rápida</p>
+        <h2 id="helpTitle">Tres pasos, sin secretos.</h2>
+        <ol class="help-steps"><li><span>1</span><div><strong>Abre una imagen</strong><p>Los PNG limpios producen mejores bordes que un JPG comprimido.</p></div></li><li><span>2</span><div><strong>Ajusta el trazado</strong><p>Menos colores y detalle crean archivos más fáciles de editar.</p></div></li><li><span>3</span><div><strong>Exporta</strong><p>SVG es la mejor opción para seguir trabajando en Illustrator.</p></div></li></ol>
+      </section>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="../../node_modules/imagetracerjs/imagetracer_v1.2.6.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
