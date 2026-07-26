@@ -3,6 +3,31 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado según [SemVer](https://semver.org/lang/es/).
 
+## [0.5.0]
+
+### Añadido
+
+- **Salida pensada para editar.** Cada letra o forma sale como su propio objeto,
+  con sus contrapuntos dentro, agrupada por tinta y con nombre. Antes todos los
+  contornos de una tinta iban en un único trazado compuesto: en un logotipo con
+  símbolo y texto eran 27 contornos en un solo objeto, así que en Illustrator no
+  se podía mover una letra sin soltar el compuesto, y al soltarlo los
+  contrapuntos dejaban de ser huecos y pasaban a ser formas rellenas encima.
+
+  Qué es relleno y qué es hueco se decide por la profundidad de anidamiento:
+  par es relleno —incluida una isla dentro de un hueco— e impar es hueco, y cada
+  hueco se asigna al contorno que lo contiene más de cerca.
+
+- **Círculos y elipses como elementos propios** (`<circle>`, `<ellipse>`) en vez
+  de cuatro curvas. Illustrator los abre como objetos elipse vivos, con sus
+  tiradores de tamaño.
+
+### Medido
+
+Marcos-Símbolo pasa de 1 objeto con 27 contornos a **19 objetos independientes**,
+8 de ellos compuestos por letra y contrapunto. La geometría no cambia: el error
+de área se mantiene en +0,57%.
+
 ## [0.4.0]
 
 ### Añadido

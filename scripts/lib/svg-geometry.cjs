@@ -215,9 +215,49 @@ function curvatureRoughness(subpaths, step = 0.5) {
   return count ? Math.sqrt(sum / count) : 0;
 }
 
+const KAPPA = 0.5522847498307936;
+
+// Convierte un <circle> o un <ellipse> en datos de trazado, para poder medirlos
+// con las mismas herramientas que el resto.
+function shapeToPath(cx, cy, rx, ry, degrees) {
+  const angle = (degrees * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const map = (u, v) => `${cx + u * cos - v * sin} ${cy + u * sin + v * cos}`;
+  const ka = rx * KAPPA;
+  const kb = ry * KAPPA;
+  return `M${map(rx, 0)}`
+    + `C${map(rx, kb)} ${map(ka, ry)} ${map(0, ry)}`
+    + `C${map(-ka, ry)} ${map(-rx, kb)} ${map(-rx, 0)}`
+    + `C${map(-rx, -kb)} ${map(-ka, -ry)} ${map(0, -ry)}`
+    + `C${map(ka, -ry)} ${map(rx, -kb)} ${map(rx, 0)}Z`;
+}
+
+// Todos los trazados del SVG concatenados. La regla par-impar aplicada al
+// conjunto da el mismo relleno que antes de repartir los contornos en objetos
+// separados, porque el reparto respeta la paridad del anidamiento.
 function extractPathData(svg) {
-  const match = svg.match(/\sd="([^"]+)"/);
-  return match ? match[1] : '';
+  let data = '';
+  for (const match of svg.matchAll(/<path\b[^>]*\sd="([^"]+)"/g)) data += match[1];
+  const attribute = (tag, name) => {
+    const found = tag.match(new RegExp(`\\s${name}="([^"]+)"`));
+    return found ? Number(found[1]) : 0;
+  };
+  for (const match of svg.matchAll(/<circle\b[^>]*>/g)) {
+    const tag = match[0];
+    const r = attribute(tag, 'r');
+    data += shapeToPath(attribute(tag, 'cx'), attribute(tag, 'cy'), r, r, 0);
+  }
+  for (const match of svg.matchAll(/<ellipse\b[^>]*>/g)) {
+    const tag = match[0];
+    const rotate = tag.match(/rotate\(\s*(-?[\d.]+)/);
+    data += shapeToPath(
+      attribute(tag, 'cx'), attribute(tag, 'cy'),
+      attribute(tag, 'rx'), attribute(tag, 'ry'),
+      rotate ? Number(rotate[1]) : 0,
+    );
+  }
+  return data;
 }
 
 // Rasteriza una forma analitica con antialias real: 16x16 muestras por pixel

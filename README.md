@@ -47,6 +47,15 @@ Además, la regularización iguala el grosor donde debería ser constante. Para 
 
 Medido sobre el texto pequeño de un logotipo real, la variación de grosor dentro de cada asta baja del 18,96% que trae el ráster al 9,33%.
 
+### Qué llega a Illustrator
+
+El SVG sale pensado para editarse, no solo para verse:
+
+- **Un objeto por letra o forma**, con sus contrapuntos dentro y agrupado por tinta. Puedes coger una letra y moverla, y su contrapunto va con ella, sin soltar ningún trazado compuesto.
+- **Círculos y elipses** salen como `<circle>` y `<ellipse>`, que Illustrator abre como objetos elipse vivos.
+- Los vértices son puntos de esquina de verdad y los tramos rectos son segmentos rectos, así que se mantienen rectos al editar.
+- Recuento de nodos bajo: entre 33 y 195 para logotipos completos.
+
 ### Ver dónde falla
 
 La pestaña **Diferencias** del visor pinta en rojo la tinta que el trazado añade y en naranja la que le falta. Es la misma herramienta con la que se encontraron casi todos los defectos del motor, y estando dentro de la aplicación permite juzgar un archivo raro sin depender de un análisis externo.

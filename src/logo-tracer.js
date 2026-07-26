@@ -1712,6 +1712,85 @@ function buildCommands(curves, tolerance) {
   return commands;
 }
 
+function pointInPolygon(point, polygon) {
+  let inside = false;
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
+    const a = polygon[index];
+    const b = polygon[previous];
+    if ((a.y > point.y) !== (b.y > point.y)
+      && point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+// Reparte los contornos en formas independientes, cada una con sus huecos.
+//
+// Sin esto, todos los contornos de una tinta acaban en un unico trazado
+// compuesto: en un logotipo con simbolo y texto son treinta y tantos contornos
+// en un solo objeto. Al abrirlo en Illustrator no se puede coger una letra y
+// moverla; hay que soltar el trazado compuesto, y al soltarlo los contrapuntos
+// dejan de ser huecos y se convierten en formas rellenas encima de la letra.
+//
+// La profundidad de anidamiento decide que es relleno y que es hueco: par es
+// relleno -incluida una isla dentro de un hueco- e impar es hueco. Cada hueco
+// se asigna al contorno que lo contiene mas de cerca.
+function groupContours(entries) {
+  const count = entries.length;
+  const depth = new Int32Array(count);
+  const parent = new Int32Array(count).fill(-1);
+
+  for (let index = 0; index < count; index += 1) {
+    // Cualquier vertice sirve de sonda: los contornos de marching squares no se
+    // cruzan entre si, asi que un vertice de uno nunca cae sobre otro.
+    const probe = entries[index].points[0];
+    for (let other = 0; other < count; other += 1) {
+      if (other === index) continue;
+      if (pointInPolygon(probe, entries[other].points)) depth[index] += 1;
+    }
+  }
+
+  for (let index = 0; index < count; index += 1) {
+    const probe = entries[index].points[0];
+    let best = -1;
+    for (let other = 0; other < count; other += 1) {
+      if (other === index) continue;
+      if (!pointInPolygon(probe, entries[other].points)) continue;
+      if (best < 0 || depth[other] > depth[best]) best = other;
+    }
+    parent[index] = best;
+  }
+
+  const groups = [];
+  for (let index = 0; index < count; index += 1) {
+    if (depth[index] % 2 !== 0) continue;
+    const holes = [];
+    for (let other = 0; other < count; other += 1) {
+      if (depth[other] % 2 === 1 && parent[other] === index) holes.push(entries[other]);
+    }
+    groups.push({ outer: entries[index], holes });
+  }
+  return groups;
+}
+
+function shapeElement(shape, transform, fill) {
+  // Una elipse solo puede salir como elemento propio si la escala es la misma
+  // en los dos ejes; si no, deja de ser una elipse y hay que emitir el trazado.
+  if (Math.abs(transform.x - transform.y) > 1e-6) return null;
+  const scaleFactor = transform.x;
+  const cx = number(shape.center.x * scaleFactor);
+  const cy = number(shape.center.y * scaleFactor);
+  const rx = shape.radiusX * scaleFactor;
+  const ry = shape.radiusY * scaleFactor;
+  if (shape.kind === 'circle') {
+    return `<circle cx="${cx}" cy="${cy}" r="${number(rx)}" fill="${fill}"/>`;
+  }
+  const degrees = (shape.rotation * 180) / Math.PI;
+  const rotation = Math.abs(degrees) > 0.05
+    ? ` transform="rotate(${number(degrees)} ${cx} ${cy})"`
+    : '';
+  return `<ellipse cx="${cx}" cy="${cy}" rx="${number(rx)}" ry="${number(ry)}" fill="${fill}"${rotation}/>`;
+}
+
 function commandsToPath(commands, start, transform) {
   if (!commands.length) return '';
   const at = (point) => `${number(point.x * transform.x)} ${number(point.y * transform.y)}`;
@@ -1918,13 +1997,28 @@ function traceMonochromeLogo(pixels, width, height, settings = {}) {
 
     curveCount += commands.length;
     cornerCount += corners.length;
-    paths.push(path);
+    paths.push({ d: path, points: contour, shape });
   });
 
   if (!paths.length) return null;
 
   const fill = inkList[inkIndex].hex || analysis.fill;
-  const pathMarkup = `<path d="${paths.join('')}" fill="${fill}" fill-rule="evenodd"/>`;
+  const groups = groupContours(paths);
+  const elements = groups.map((group, index) => {
+    // Un circulo o una elipse sin huecos sale como elemento propio: Illustrator
+    // los abre como objetos elipse vivos, con sus tiradores de tamano, en vez
+    // de como cuatro curvas sueltas.
+    if (!group.holes.length && group.outer.shape) {
+      const element = shapeElement(group.outer.shape, transform, fill);
+      if (element) return element;
+    }
+    const data = [group.outer.d, ...group.holes.map((hole) => hole.d)].join('');
+    const name = ` id="forma-${inkIndex + 1}-${index + 1}"`;
+    return `<path${name} d="${data}" fill="${fill}" fill-rule="evenodd"/>`;
+  });
+  const pathMarkup = elements.length > 1
+    ? `<g id="tinta-${inkIndex + 1}">${elements.join('')}</g>`
+    : elements.join('');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${output.width}" height="${output.height}" viewBox="0 0 ${output.width} ${output.height}">${pathMarkup}</svg>`;
 
   const label = analysis.mode === 'multi'

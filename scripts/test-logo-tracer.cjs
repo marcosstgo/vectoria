@@ -479,8 +479,11 @@ function fidelity(result, width, height, inside, samples = 4) {
 
   const result = traceLogo(pixels, width, height, { detail: 1, smooth: true, analysis });
   assert.ok(result, 'El logo de dos tintas debe vectorizarse.');
-  const fills = [...result.svg.matchAll(/<path [^>]*fill="([^"]+)"/g)].map((match) => match[1]);
-  assert.equal(fills.length, 2, `Se esperaban 2 trazados, uno por tinta, y salieron ${fills.length}.`);
+  // El símbolo redondo sale como <circle>, no como <path>, así que se cuentan
+  // los rellenos de cualquier elemento dibujable.
+  const fills = [...result.svg.matchAll(/<(?:path|circle|ellipse)\b[^>]*fill="([^"]+)"/g)]
+    .map((match) => match[1]);
+  assert.equal(fills.length, 2, `Se esperaban 2 objetos, uno por tinta, y salieron ${fills.length}.`);
 
   // Cada tinta debe salir con su color, no con el promedio de las dos.
   const near = (hex, rgb) => {
@@ -491,9 +494,7 @@ function fidelity(result, width, height, inside, samples = 4) {
   assert.ok(fills.some((hex) => near(hex, LIGHT)), `Falta la tinta clara. Salieron ${fills.join(', ')}.`);
 
   // Y el símbolo claro tiene que conservar su área: es lo que se perdía.
-  // Ojo: hay un trazado por tinta, así que hay que aplanarlos todos.
-  const subpaths = [...result.svg.matchAll(/<path d="([^"]+)"/g)]
-    .flatMap((match) => flattenPath(match[1]));
+  const subpaths = flattenPath(extractPathData(result.svg));
   const symbolArea = Math.PI * 34 * 34;
   const traced = rasterize(subpaths, width, height, 3);
   let covered = 0;
@@ -505,6 +506,45 @@ function fidelity(result, width, height, inside, samples = 4) {
     `Área total ${totalArea.toFixed(0)} frente a ${expected.toFixed(0)} esperada.`,
   );
   report('dos tintas', `${fills.join(' + ')}, área a ${(100 * Math.abs(totalArea - expected) / expected).toFixed(2)}%`);
+}
+
+/* ------------------------------------------------------------------ *
+ * 13. Salida editable: un objeto por forma, con sus propios huecos
+ * ------------------------------------------------------------------ */
+{
+  // Dos anillos separados y un disco. Antes salían los cinco contornos en un
+  // único trazado compuesto, así que en Illustrator no se podía mover un anillo
+  // sin soltar el compuesto, y al soltarlo los huecos pasaban a ser formas
+  // rellenas encima.
+  const width = 320;
+  const height = 160;
+  const ring = (x, y, cx) => {
+    const r = Math.hypot(x - cx, y - 80);
+    return r <= 44 && r >= 24;
+  };
+  const disc = (x, y) => Math.hypot(x - 265, y - 80) <= 26;
+  const inside = (x, y) => ring(x, y, 60) || ring(x, y, 160) || disc(x, y);
+  const pixels = renderShape(width, height, inside);
+  const result = trace(pixels, width, height).result;
+  assert.ok(result, 'La forma debe vectorizarse.');
+
+  const drawable = [...result.svg.matchAll(/<(path|circle|ellipse)\b/g)].map((match) => match[1]);
+  assert.equal(drawable.length, 3, `Se esperaban 3 objetos independientes y salieron ${drawable.length}.`);
+
+  // Cada anillo tiene que llevarse su hueco dentro: dos subtrazados por objeto.
+  const rings = [...result.svg.matchAll(/<path\b[^>]*\sd="([^"]+)"/g)]
+    .map((match) => (match[1].match(/M/g) || []).length);
+  assert.deepEqual(rings.sort(), [2, 2], `Cada anillo debe ser un compuesto de 2 subtrazados, salieron ${rings}.`);
+
+  // Y el disco, que no tiene huecos y es redondo, como elemento propio.
+  assert.ok(
+    drawable.includes('circle') || drawable.includes('ellipse'),
+    'El disco deberia salir como <circle> o <ellipse>, no como trazado.',
+  );
+
+  const { iou } = fidelity(result, width, height, inside);
+  assert.ok(iou > 0.995, `La reestructuracion cambio la geometria: IoU ${iou.toFixed(5)}.`);
+  report('salida editable', `${drawable.length} objetos (${drawable.join(', ')}), IoU ${iou.toFixed(5)}`);
 }
 
 console.log('Vectoria Logo: todas las pruebas de geometria pasan.');
