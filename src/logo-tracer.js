@@ -105,19 +105,175 @@ function analyzeOpaqueLogo(pixels, width, height, base) {
   if (!stats) return null;
 
   const coverage = inkPixels / (width * height);
-  if (stats.deviation >= 26 || coverage <= 0.0005 || coverage >= 0.9) return null;
+  if (coverage <= 0.0005 || coverage >= 0.9) return null;
+
+  const inks = clusterInks(pixels, width, height, background);
+  // Con varias tintas la desviacion de color es alta por construccion, asi que
+  // el filtro de monocromia solo se aplica cuando de verdad hay una sola.
+  if (!inks || inks.length < 2) {
+    if (stats.deviation >= 26) return null;
+    return {
+      ...base,
+      eligible: true,
+      mode: 'matte',
+      fill: toHex(stats.means),
+      background: toHex(background),
+      backgroundRgb: background,
+      inkRgb: stats.means,
+      inks: [{ rgb: stats.means, hex: toHex(stats.means) }],
+      inkCoverage: coverage,
+      colorDeviation: stats.deviation,
+    };
+  }
+
+  // Cada tinta por separado tiene que ser razonablemente plana; si una viene de
+  // un degradado, esto no es un logo de tintas planas y mejor no tocarlo.
+  if (Math.max(...inks.map((ink) => ink.spread)) > 26) return null;
 
   return {
     ...base,
     eligible: true,
-    mode: 'matte',
-    fill: toHex(stats.means),
+    mode: 'multi',
+    fill: inks[0].hex,
     background: toHex(background),
     backgroundRgb: background,
-    inkRgb: stats.means,
+    inkRgb: inks[0].rgb,
+    inks,
     inkCoverage: coverage,
     colorDeviation: stats.deviation,
   };
+}
+
+// Agrupa los pixeles de tinta por color para saber cuantas tintas hay.
+//
+// Un logo de dos tintas -un simbolo de un color y el texto de otro- pasaba
+// antes por el analisis de una sola: se tomaba el color medio de los pixeles
+// mas alejados del fondo, que son los de la tinta dominante, y la otra tinta
+// quedaba a media cobertura. En un caso real el simbolo desaparecia casi
+// entero, y sin ningun aviso, que es lo peor que puede hacer un conversor.
+function clusterInks(pixels, width, height, background) {
+  const total = width * height;
+  const distance = new Float32Array(total);
+  let maxDistance = 0;
+  for (let index = 0; index < total; index += 1) {
+    const offset = index * 4;
+    if (pixels[offset + 3] < 128) continue;
+    const value = Math.hypot(
+      pixels[offset] - background[0],
+      pixels[offset + 1] - background[1],
+      pixels[offset + 2] - background[2],
+    );
+    distance[index] = value;
+    if (value > maxDistance) maxDistance = value;
+  }
+  if (maxDistance < 60) return null;
+
+  // Se necesita el interior de cada tinta, no sus bordes, porque un pixel de
+  // borde es una mezcla de tinta y fondo y desplazaria los centros.
+  //
+  // Antes se seleccionaba por distancia al fondo superior a una fraccion del
+  // maximo, y eso descarta enteras las tintas claras: en un logo con texto
+  // negro y un simbolo lila, el lila queda por debajo del umbral que fija el
+  // negro y el logo se analizaba como si fuera de una sola tinta. Erosionar la
+  // mascara de tinta quita los bordes sin mirar el color.
+  const ink = new Uint8Array(total);
+  const minimumDistance = Math.max(40, maxDistance * 0.12);
+  for (let index = 0; index < total; index += 1) ink[index] = distance[index] > minimumDistance ? 1 : 0;
+
+  const core = [];
+  const stride = Math.max(1, Math.floor(Math.sqrt(total / 60000)));
+  for (let y = 1; y < height - 1; y += stride) {
+    for (let x = 1; x < width - 1; x += stride) {
+      const index = y * width + x;
+      if (!ink[index]) continue;
+      if (!ink[index - 1] || !ink[index + 1] || !ink[index - width] || !ink[index + width]) continue;
+      const offset = index * 4;
+      core.push({ r: pixels[offset], g: pixels[offset + 1], b: pixels[offset + 2] });
+    }
+  }
+  if (core.length < 40) return null;
+
+  const distanceTo = (sample, centre) => Math.hypot(sample.r - centre[0], sample.g - centre[1], sample.b - centre[2]);
+
+  const run = (k) => {
+    // Siembra tipo k-means++: el primero al azar y cada siguiente lo mas lejos
+    // posible de los ya elegidos, que es lo que separa tintas parecidas.
+    const centres = [[core[0].r, core[0].g, core[0].b]];
+    while (centres.length < k) {
+      let best = null;
+      let bestDistance = -1;
+      core.forEach((sample) => {
+        const nearest = Math.min(...centres.map((centre) => distanceTo(sample, centre)));
+        if (nearest > bestDistance) { bestDistance = nearest; best = sample; }
+      });
+      centres.push([best.r, best.g, best.b]);
+    }
+    const assignment = new Int32Array(core.length);
+    for (let iteration = 0; iteration < 24; iteration += 1) {
+      let moved = false;
+      core.forEach((sample, index) => {
+        let bestIndex = 0;
+        let bestDistance = Infinity;
+        centres.forEach((centre, centreIndex) => {
+          const distance = distanceTo(sample, centre);
+          if (distance < bestDistance) { bestDistance = distance; bestIndex = centreIndex; }
+        });
+        if (assignment[index] !== bestIndex) { assignment[index] = bestIndex; moved = true; }
+      });
+      const sums = centres.map(() => [0, 0, 0, 0]);
+      core.forEach((sample, index) => {
+        const bucket = sums[assignment[index]];
+        bucket[0] += sample.r; bucket[1] += sample.g; bucket[2] += sample.b; bucket[3] += 1;
+      });
+      sums.forEach((bucket, index) => {
+        if (bucket[3]) centres[index] = [bucket[0] / bucket[3], bucket[1] / bucket[3], bucket[2] / bucket[3]];
+      });
+      if (!moved) break;
+    }
+    const counts = centres.map(() => 0);
+    const squared = centres.map(() => 0);
+    core.forEach((sample, index) => {
+      counts[assignment[index]] += 1;
+      const gap = distanceTo(sample, centres[assignment[index]]);
+      squared[assignment[index]] += gap * gap;
+    });
+    // Dispersion de cada grupo, medida sobre el mismo nucleo erosionado que se
+    // uso para agruparlos. Calcularla despues con un umbral global volvia a
+    // dejar fuera la tinta clara y la daba por sucia.
+    const spread = centres.map((_, index) => (counts[index] ? Math.sqrt(squared[index] / counts[index]) : Infinity));
+    return { centres, counts, spread };
+  };
+
+  let chosen = run(1);
+  for (let k = 2; k <= 3; k += 1) {
+    const attempt = run(k);
+    // Se acepta una tinta mas sólo si los grupos quedan lejos entre si y
+    // ninguno es residual. Sin estas dos condiciones, cualquier degradado o
+    // sombra se partiria en tintas inventadas.
+    let minimumSeparation = Infinity;
+    for (let i = 0; i < attempt.centres.length; i += 1) {
+      for (let j = i + 1; j < attempt.centres.length; j += 1) {
+        minimumSeparation = Math.min(minimumSeparation, Math.hypot(
+          attempt.centres[i][0] - attempt.centres[j][0],
+          attempt.centres[i][1] - attempt.centres[j][1],
+          attempt.centres[i][2] - attempt.centres[j][2],
+        ));
+      }
+    }
+    const smallest = Math.min(...attempt.counts) / core.length;
+    if (minimumSeparation > 70 && smallest > 0.06) chosen = attempt;
+    else break;
+  }
+
+  const inks = chosen.centres.map((centre, index) => ({
+    rgb: centre,
+    hex: toHex(centre),
+    share: chosen.counts[index] / core.length,
+    spread: chosen.spread[index],
+  }));
+  // De oscura a clara, para que el orden de pintado sea estable.
+  inks.sort((a, b) => (a.rgb[0] + a.rgb[1] + a.rgb[2]) - (b.rgb[0] + b.rgb[1] + b.rgb[2]));
+  return inks;
 }
 
 function analyzeMonochromeLogo(pixels, width, height) {
@@ -179,8 +335,42 @@ function analyzeMonochromeLogo(pixels, width, height) {
 // es exactamente 0.5. En modo mate se proyecta el color sobre el eje que une
 // fondo y tinta: proyectar, en vez de usar luminancia, elimina el sesgo que
 // hacia engordar o adelgazar las astas segun el tono del logo.
-function buildCoverageField(pixels, width, height, analysis) {
+function buildCoverageField(pixels, width, height, analysis, inkIndex = 0) {
   const field = new Float32Array(width * height);
+
+  // Varias tintas: cada pixel se desmezcla contra el eje fondo-tinta que mejor
+  // lo explica. Un pixel del borde entre el simbolo lila y el blanco es una
+  // mezcla de esos dos, y proyectarlo sobre el eje del negro daria un valor
+  // intermedio sin sentido; se elige el eje cuyo residuo es menor y sólo ese
+  // recibe cobertura.
+  if (analysis.mode === 'multi') {
+    const background = analysis.backgroundRgb;
+    const axes = analysis.inks.map((ink) => {
+      const axis = [ink.rgb[0] - background[0], ink.rgb[1] - background[1], ink.rgb[2] - background[2]];
+      return { axis, squared: axis[0] ** 2 + axis[1] ** 2 + axis[2] ** 2 };
+    });
+    for (let index = 0; index < field.length; index += 1) {
+      const offset = index * 4;
+      const alpha = pixels[offset + 3] / 255;
+      if (alpha < 0.02) continue;
+      const dr = pixels[offset] - background[0];
+      const dg = pixels[offset + 1] - background[1];
+      const db = pixels[offset + 2] - background[2];
+      let bestIndex = -1;
+      let bestResidual = Infinity;
+      let bestAmount = 0;
+      axes.forEach((entry, candidate) => {
+        if (entry.squared < EPSILON) return;
+        const amount = clamp((dr * entry.axis[0] + dg * entry.axis[1] + db * entry.axis[2]) / entry.squared, 0, 1);
+        const residual = (dr - amount * entry.axis[0]) ** 2
+          + (dg - amount * entry.axis[1]) ** 2
+          + (db - amount * entry.axis[2]) ** 2;
+        if (residual < bestResidual) { bestResidual = residual; bestIndex = candidate; bestAmount = amount; }
+      });
+      if (bestIndex === inkIndex) field[index] = bestAmount * alpha;
+    }
+    return field;
+  }
 
   if (analysis.mode === 'matte') {
     const background = analysis.backgroundRgb;
@@ -1562,7 +1752,9 @@ function traceMonochromeLogo(pixels, width, height, settings = {}) {
   const sourcePixel = 1 / factor;
 
   const threshold = clamp(Number(settings.threshold) || 0.5, 0.2, 0.8);
-  const field = buildCoverageField(pixels, width, height, analysis);
+  const inkList = analysis.inks && analysis.inks.length ? analysis.inks : [{ hex: analysis.fill }];
+  const inkIndex = clamp(Number(settings.inkIndex) || 0, 0, inkList.length - 1);
+  const field = buildCoverageField(pixels, width, height, analysis, inkIndex);
   const rawContours = connectContours(marchingSegments(field, width, height, threshold));
   if (!rawContours.length) return null;
 
@@ -1731,11 +1923,15 @@ function traceMonochromeLogo(pixels, width, height, settings = {}) {
 
   if (!paths.length) return null;
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${output.width}" height="${output.height}" viewBox="0 0 ${output.width} ${output.height}"><path d="${paths.join('')}" fill="${analysis.fill}" fill-rule="evenodd"/></svg>`;
+  const fill = inkList[inkIndex].hex || analysis.fill;
+  const pathMarkup = `<path d="${paths.join('')}" fill="${fill}" fill-rule="evenodd"/>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${output.width}" height="${output.height}" viewBox="0 0 ${output.width} ${output.height}">${pathMarkup}</svg>`;
 
-  const label = analysis.mode === 'matte'
-    ? 'Vectoria Logo · mate sobre fondo sólido'
-    : 'Vectoria Logo · contorno subpíxel';
+  const label = analysis.mode === 'multi'
+    ? 'Vectoria Logo · varias tintas'
+    : analysis.mode === 'matte'
+      ? 'Vectoria Logo · mate sobre fondo sólido'
+      : 'Vectoria Logo · contorno subpíxel';
   // La calidad del borde del archivo se informa en la interfaz: si sale
   // "borde duro", el limite no esta en el trazador sino en el PNG de partida,
   // y conviene conseguir el original en mayor resolucion.
@@ -1747,6 +1943,9 @@ function traceMonochromeLogo(pixels, width, height, settings = {}) {
 
   return {
     svg,
+    pathMarkup,
+    fill,
+    inkCount: inkList.length,
     engine: `${label} · ${cornerCount} esquinas${shapeNote} · ${quality}`,
     curveCount,
     contourCount: paths.length,
@@ -1761,9 +1960,58 @@ function traceMonochromeLogo(pixels, width, height, settings = {}) {
   };
 }
 
+// Traza el logo entero: una pasada por tinta, todas en el mismo SVG.
+//
+// Cada tinta se trata como un problema independiente de una sola tinta, que es
+// lo que el motor sabe hacer bien. Funciona mientras las tintas no compartan
+// borde; cuando lo comparten haria falta una topologia comun para que no
+// queden ni huecos ni solapes en la costura, y eso queda pendiente.
+function traceLogo(pixels, width, height, settings = {}) {
+  const analysis = settings.analysis && settings.analysis.eligible
+    ? settings.analysis
+    : analyzeMonochromeLogo(pixels, width, height);
+  if (!analysis.eligible) return null;
+
+  const inks = analysis.inks && analysis.inks.length ? analysis.inks : [{ hex: analysis.fill }];
+  if (inks.length < 2) return traceMonochromeLogo(pixels, width, height, { ...settings, analysis });
+
+  const layers = [];
+  const totals = {
+    curveCount: 0, contourCount: 0, cornerCount: 0, shapeCount: 0, strokeFixed: 0, noiseRms: 0,
+  };
+  inks.forEach((ink, index) => {
+    const layer = traceMonochromeLogo(pixels, width, height, { ...settings, analysis, inkIndex: index });
+    if (!layer) return;
+    layers.push(layer);
+    totals.curveCount += layer.curveCount;
+    totals.contourCount += layer.contourCount;
+    totals.cornerCount += layer.cornerCount;
+    totals.shapeCount += layer.shapeCount;
+    totals.strokeFixed += layer.strokeFixed;
+    totals.noiseRms = Math.max(totals.noiseRms, layer.noiseRms);
+  });
+  if (!layers.length) return null;
+
+  const output = settings.output && settings.output.width && settings.output.height
+    ? settings.output
+    : { width, height };
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${output.width}" height="${output.height}" viewBox="0 0 ${output.width} ${output.height}">${layers.map((layer) => layer.pathMarkup).join('')}</svg>`;
+
+  return {
+    ...totals,
+    svg,
+    inkCount: inks.length,
+    inks: inks.map((ink) => ink.hex),
+    engine: `Vectoria Logo · ${layers.length} tintas · ${totals.cornerCount} esquinas`,
+    analysis,
+  };
+}
+
 module.exports = {
   analyzeMonochromeLogo,
   traceMonochromeLogo,
+  traceLogo,
+  clusterInks,
   buildCoverageField,
   marchingSegments,
   connectContours,

@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
 const SVGtoPDF = require('svg-to-pdfkit');
-const { traceMonochromeLogo, analyzeMonochromeLogo } = require('./logo-tracer');
+const { traceLogo, analyzeMonochromeLogo } = require('./logo-tracer');
 const { resampleRgba, planWorkingSize } = require('./resample');
 const {
   vectorizeRaw,
@@ -178,7 +178,7 @@ ipcMain.handle('trace-vtracer', async (_event, payload) => {
     : resampleRgba(buffer, width, height, plan.width, plan.height);
 
   if (analysis?.eligible) {
-    const specialized = traceMonochromeLogo(working.data, working.width, working.height, {
+    const specialized = traceLogo(working.data, working.width, working.height, {
       ...settings,
       analysis,
       output: { width, height },

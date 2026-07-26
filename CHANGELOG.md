@@ -3,6 +3,37 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado según [SemVer](https://semver.org/lang/es/).
 
+## [0.4.0]
+
+### Añadido
+
+- **Logos de varias tintas.** Se detectan por agrupamiento las tintas planas del
+  archivo y se traza una capa por tinta, cada una con su color. Cada píxel se
+  desmezcla contra el eje fondo-tinta que mejor lo explica, de modo que un borde
+  entre dos tintas no se reparte mal.
+
+  Funciona mientras las tintas no compartan borde. Cuando lo comparten haría
+  falta una topología común para que no queden ni huecos ni solapes en la
+  costura, y eso sigue pendiente.
+
+### Corregido
+
+- Un logo de dos tintas se analizaba como si fuera de una sola: se tomaba el
+  color de la tinta dominante y la otra quedaba a media cobertura. Sobre un logo
+  real con símbolo lila y texto negro, **el símbolo desaparecía casi entero y
+  sin ningún aviso**, que es el peor fallo posible en un conversor.
+
+  La causa concreta era que los píxeles «núcleo» de cada tinta se seleccionaban
+  por distancia al fondo superior a una fracción del máximo, y ese máximo lo
+  fija la tinta más oscura: cualquier tinta clara caía por debajo del umbral y
+  no llegaba siquiera a considerarse. Ahora se erosiona la máscara de tinta, que
+  quita los bordes sin mirar el color.
+
+### Medido
+
+Lote de siete logos reales: seis ya salían con menos de 1% de error de área; el
+de dos tintas pasa de **−9,86% a +0,10%**.
+
 ## [0.3.0]
 
 Fase de **regularización**: el motor deja de perseguir únicamente el parecido al

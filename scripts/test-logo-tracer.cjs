@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { analyzeMonochromeLogo, traceMonochromeLogo } = require('../src/logo-tracer');
+const { analyzeMonochromeLogo, traceMonochromeLogo, traceLogo } = require('../src/logo-tracer');
 const { planWorkingSize, resampleRgba } = require('../src/resample');
 const {
   flattenPath,
@@ -428,6 +428,83 @@ function fidelity(result, width, height, inside, samples = 4) {
     );
   });
   report('trazo fino', `${stemWidth} px → ${widths.map((value) => value.toFixed(2)).join(' / ')} px (reg 0 / 1 / 2)`);
+}
+
+/* ------------------------------------------------------------------ *
+ * 12. Logo de dos tintas
+ * ------------------------------------------------------------------ */
+{
+  // Un simbolo de color claro sobre un texto oscuro, ambos sobre blanco. Antes
+  // el analisis tomaba el color de la tinta dominante y la clara quedaba a
+  // media cobertura: en un logo real el simbolo desaparecia casi entero, y sin
+  // aviso ninguno.
+  const width = 220;
+  const height = 220;
+  const symbol = (x, y) => Math.hypot(x - 110, y - 70) <= 34;
+  const bar = (x, y) => x >= 45 && x <= 175 && y >= 130 && y <= 156;
+  const DARK = [18, 18, 20];
+  const LIGHT = [140, 118, 151];
+
+  const pixels = new Uint8ClampedArray(width * height * 4);
+  const samples = 8;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      let inSymbol = 0;
+      let inBar = 0;
+      for (let sy = 0; sy < samples; sy += 1) {
+        for (let sx = 0; sx < samples; sx += 1) {
+          const px = x + (sx + 0.5) / samples;
+          const py = y + (sy + 0.5) / samples;
+          if (symbol(px, py)) inSymbol += 1;
+          if (bar(px, py)) inBar += 1;
+        }
+      }
+      const total = samples * samples;
+      const a = inSymbol / total;
+      const b = inBar / total;
+      const offset = (y * width + x) * 4;
+      for (let channel = 0; channel < 3; channel += 1) {
+        pixels[offset + channel] = 255
+          + a * (LIGHT[channel] - 255)
+          + b * (DARK[channel] - 255);
+      }
+      pixels[offset + 3] = 255;
+    }
+  }
+
+  const analysis = analyzeMonochromeLogo(pixels, width, height);
+  assert.equal(analysis.eligible, true, 'Un logo de dos tintas planas debe ser elegible.');
+  assert.equal(analysis.mode, 'multi', `Se esperaba modo multi y salió ${analysis.mode}.`);
+  assert.equal(analysis.inks.length, 2, `Se esperaban 2 tintas y se detectaron ${analysis.inks.length}.`);
+
+  const result = traceLogo(pixels, width, height, { detail: 1, smooth: true, analysis });
+  assert.ok(result, 'El logo de dos tintas debe vectorizarse.');
+  const fills = [...result.svg.matchAll(/<path [^>]*fill="([^"]+)"/g)].map((match) => match[1]);
+  assert.equal(fills.length, 2, `Se esperaban 2 trazados, uno por tinta, y salieron ${fills.length}.`);
+
+  // Cada tinta debe salir con su color, no con el promedio de las dos.
+  const near = (hex, rgb) => {
+    const value = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
+    return Math.hypot(value[0] - rgb[0], value[1] - rgb[1], value[2] - rgb[2]) < 24;
+  };
+  assert.ok(fills.some((hex) => near(hex, DARK)), `Falta la tinta oscura. Salieron ${fills.join(', ')}.`);
+  assert.ok(fills.some((hex) => near(hex, LIGHT)), `Falta la tinta clara. Salieron ${fills.join(', ')}.`);
+
+  // Y el símbolo claro tiene que conservar su área: es lo que se perdía.
+  // Ojo: hay un trazado por tinta, así que hay que aplanarlos todos.
+  const subpaths = [...result.svg.matchAll(/<path d="([^"]+)"/g)]
+    .flatMap((match) => flattenPath(match[1]));
+  const symbolArea = Math.PI * 34 * 34;
+  const traced = rasterize(subpaths, width, height, 3);
+  let covered = 0;
+  for (let index = 0; index < traced.mask.length; index += 1) if (traced.mask[index]) covered += 1;
+  const totalArea = covered / 9;
+  const expected = symbolArea + 130 * 26;
+  assert.ok(
+    Math.abs(totalArea - expected) / expected < 0.02,
+    `Área total ${totalArea.toFixed(0)} frente a ${expected.toFixed(0)} esperada.`,
+  );
+  report('dos tintas', `${fills.join(' + ')}, área a ${(100 * Math.abs(totalArea - expected) / expected).toFixed(2)}%`);
 }
 
 console.log('Vectoria Logo: todas las pruebas de geometria pasan.');

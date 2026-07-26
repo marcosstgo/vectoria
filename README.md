@@ -2,7 +2,7 @@
 
 Aplicación de escritorio para convertir imágenes JPG, PNG, BMP, GIF y WebP en vectores editables. Todo el procesamiento se realiza localmente.
 
-El modo **Logo** detecta automáticamente los archivos que son un logo plano —con transparencia o sobre un fondo sólido— y los trata con un motor propio pensado para tipografía. Las imágenes multicolor siguen usando VTracer.
+El modo **Logo** detecta automáticamente los archivos que son un logo de tintas planas —con transparencia, sobre fondo sólido, y de una o varias tintas— y los trata con un motor propio pensado para tipografía. Las ilustraciones y fotografías siguen usando VTracer.
 
 ## Cómo funciona el motor de logos
 
@@ -103,7 +103,7 @@ Esta versión incluye trazado multicolor con VTracer, motor propio para logos de
 
 Pendiente para una fase posterior:
 
-- **Logos de varias tintas.** Hoy, si un logo tiene dos colores, el motor propio no lo acepta y cae a VTracer. Lo correcto sería cuantizar a N colores y trazar cada máscara por separado con el mismo contorno subpíxel.
+- **Tintas que comparten borde.** El trazado por tintas funciona mientras cada una tenga su propio contorno. Cuando dos colores se tocan haría falta una topología común para que no queden ni huecos ni solapes en la costura.
 - **Enderezado de astas.** Alinear a la vertical o la horizontal exactas los tramos que ya casi lo están, reajustando los vértices compartidos. Es lo que separa un trazado limpio de uno con astas ligeramente inclinadas.
 - **Detección de círculos y arcos**, para que una circunferencia salga como tal y no como cuatro cúbicas ajustadas.
 - **Edición manual de nodos y regiones.**
