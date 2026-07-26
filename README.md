@@ -108,6 +108,41 @@ Pendiente para una fase posterior:
 - **Detección de círculos y arcos**, para que una circunferencia salga como tal y no como cuatro cúbicas ajustadas.
 - **Edición manual de nodos y regiones.**
 
+## Desarrollo
+
+El proyecto está versionado con git y sigue [SemVer](https://semver.org/lang/es/). El historial de cambios, con las medidas de cada fase, está en [CHANGELOG.md](CHANGELOG.md). La versión instalada aparece en la esquina superior izquierda de la aplicación.
+
+Antes de dar por bueno un cambio en el motor:
+
+```
+npm.cmd run check     # estructura y pruebas de geometría
+npm.cmd run bench     # fidelidad, aspereza de curvatura, nodos
+```
+
+### Publicar en GitHub
+
+El repositorio local ya está creado, con el primer commit y la etiqueta `v0.3.0`. Para subirlo hace falta autenticarte tú, así que estos comandos van en tu PowerShell:
+
+```powershell
+cd C:\Vector
+
+# Opción A: con GitHub CLI (crea el repositorio y sube en un paso)
+gh repo create vectoria --private --source=. --push
+
+# Opción B: creando el repositorio a mano en github.com y luego
+git remote add origin https://github.com/TU-USUARIO/vectoria.git
+git push -u origin main --tags
+```
+
+### Para la siguiente versión
+
+```powershell
+npm.cmd version minor      # sube el número en package.json y crea la etiqueta
+git push --follow-tags
+```
+
+Conviene anotar en el CHANGELOG qué cambió y **con qué medida se comprobó**, no solo qué se tocó.
+
 ## Privacidad
 
 Vectoria no sube imágenes ni resultados a servicios externos. La imagen se procesa dentro de la aplicación y solamente se escribe al disco cuando eliges una ubicación de exportación.
