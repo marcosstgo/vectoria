@@ -4,6 +4,7 @@
   "description": "Vectorizador local de imágenes con exportación SVG y PDF",
   "main": "src/main.js",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",

@@ -157,3 +157,7 @@ Conviene anotar en el CHANGELOG qué cambió y **con qué medida se comprobó**,
 ## Privacidad
 
 Vectoria no sube imágenes ni resultados a servicios externos. La imagen se procesa dentro de la aplicación y solamente se escribe al disco cuando eliges una ubicación de exportación.
+
+## Licencia
+
+Este proyecto se distribuye bajo la [PolyForm Strict License 1.0.0](LICENSE): el código es público para leerlo, estudiarlo y usarlo con fines no comerciales, pero no permite distribuirlo, modificarlo ni usarlo comercialmente sin permiso del autor.
