@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
@@ -37,6 +37,11 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://') || url.startsWith('http://')) shell.openExternal(url);
+    return { action: 'deny' };
   });
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));

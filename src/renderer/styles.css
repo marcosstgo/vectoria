@@ -230,6 +230,10 @@ button:disabled { opacity: .42; cursor: default; }
 .format-card strong { font-size: 15px; margin-bottom: 5px; }
 .format-card small { color: var(--ink-soft); line-height: 1.5; }
 .help-modal { width: min(520px,92vw); }
+.about-modal { width: min(420px,92vw); }
+.about-version { margin-left: 6px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 20px; color: var(--ink-soft); font-size: 12px; font-variant-numeric: tabular-nums; letter-spacing: .04em; vertical-align: middle; }
+.about-author { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); line-height: 1.6; }
+.about-author a { color: var(--teal); }
 .help-steps { list-style: none; padding: 0; margin: 23px 0 0; display: grid; gap: 16px; }
 .help-steps li { display: grid; grid-template-columns: 37px 1fr; gap: 12px; }
 .help-steps li > span { width: 33px; height: 33px; display: grid; place-items: center; border-radius: 10px; color: white; background: var(--teal); font-family: Georgia,serif; }

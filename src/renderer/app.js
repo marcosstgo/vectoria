@@ -46,6 +46,8 @@ const els = {
   autoBadge: $('#autoBadge'),
   exportDialog: $('#exportDialog'),
   helpDialog: $('#helpDialog'),
+  aboutDialog: $('#aboutDialog'),
+  aboutVersion: $('#aboutVersion'),
   toast: $('#toast'),
   zoomRange: $('#zoomRange'),
   zoomValue: $('#zoomValue'),
@@ -515,6 +517,8 @@ $('#chooseBtn').addEventListener('click', pickImage);
 $('#newBtn').addEventListener('click', resetProject);
 $('#helpBtn').addEventListener('click', () => { els.helpDialog.hidden = false; });
 $('#closeHelp').addEventListener('click', () => { els.helpDialog.hidden = true; });
+$('#aboutBtn').addEventListener('click', () => { els.aboutDialog.hidden = false; });
+$('#closeAbout').addEventListener('click', () => { els.aboutDialog.hidden = true; });
 $('#closeExport').addEventListener('click', () => { els.exportDialog.hidden = true; });
 els.traceBtn.addEventListener('click', () => traceImage());
 els.exportBtn.addEventListener('click', () => { els.exportDialog.hidden = false; });
@@ -552,6 +556,7 @@ window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     els.exportDialog.hidden = true;
     els.helpDialog.hidden = true;
+    els.aboutDialog.hidden = true;
   }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'o') {
     event.preventDefault();
@@ -568,5 +573,8 @@ updateCompare(50);
 setCanvasBackground('checker');
 
 window.vectoria.getVersion()
-  .then((version) => { els.appVersion.textContent = `v${version}`; })
+  .then((version) => {
+    els.appVersion.textContent = `v${version}`;
+    els.aboutVersion.textContent = `v${version}`;
+  })
   .catch(() => { els.appVersion.hidden = true; });

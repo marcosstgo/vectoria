@@ -28,6 +28,9 @@
         <button id="helpBtn" class="rail-action" type="button" title="Guía rápida">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M9.8 9a2.4 2.4 0 1 1 3.4 2.2c-.8.4-1.2.9-1.2 1.8M12 16.5h.01"/></svg><span>Guía</span>
         </button>
+        <button id="aboutBtn" class="rail-action" type="button" title="Acerca de Vectoria">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 11v5M12 8h.01"/></svg><span>About</span>
+        </button>
       </aside>
 
       <section class="workspace">
@@ -158,6 +161,16 @@
         <p class="eyebrow">Guía rápida</p>
         <h2 id="helpTitle">Tres pasos, sin secretos.</h2>
         <ol class="help-steps"><li><span>1</span><div><strong>Abre una imagen</strong><p>Los PNG limpios producen mejores bordes que un JPG comprimido.</p></div></li><li><span>2</span><div><strong>Ajusta el trazado</strong><p>Menos colores y detalle crean archivos más fáciles de editar.</p></div></li><li><span>3</span><div><strong>Exporta</strong><p>SVG es la mejor opción para seguir trabajando en Illustrator.</p></div></li></ol>
+      </section>
+    </div>
+
+    <div id="aboutDialog" class="modal-backdrop" hidden>
+      <section class="modal about-modal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+        <button id="closeAbout" class="modal-close" type="button" aria-label="Cerrar">×</button>
+        <p class="eyebrow">Acerca de</p>
+        <h2 id="aboutTitle">Vectoria <span id="aboutVersion" class="about-version"></span></h2>
+        <p class="modal-intro">Vectorizador local de imágenes con exportación SVG y PDF.</p>
+        <p class="about-author">Creado por <strong>Marcos Santiago</strong><br /><a href="https://marcossantiago.com" target="_blank" rel="noopener">marcossantiago.com</a></p>
       </section>
     </div>
 
