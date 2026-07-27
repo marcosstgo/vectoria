@@ -575,6 +575,7 @@ setCanvasBackground('checker');
 window.vectoria.getVersion()
   .then((version) => {
     els.appVersion.textContent = `v${version}`;
-    els.aboutVersion.textContent = `v${version}`;
+    // En el diálogo la etiqueta ya dice "Versión", así que aquí sólo el número.
+    els.aboutVersion.textContent = version;
   })
   .catch(() => { els.appVersion.hidden = true; });
