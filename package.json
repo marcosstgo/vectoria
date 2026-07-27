@@ -1,7 +1,7 @@
 {
   "name": "vectoria",
   "version": "0.7.0",
-  "description": "Vectorizador local de imágenes con exportación SVG y PDF",
+  "description": "Vectorizador local con Cincel, motor de trazado propio para logos (no un wrapper de VTracer) — exportación SVG y PDF",
   "main": "src/main.js",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
