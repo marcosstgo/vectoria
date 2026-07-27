@@ -3,6 +3,55 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado según [SemVer](https://semver.org/lang/es/).
 
+## [0.6.0]
+
+### Añadido
+
+- **Detección de tramos rectos independiente de las esquinas.** Los lados rectos
+  se emiten como rectas exactas y el hueco entre dos de ellos —el vértice
+  redondeado— se ajusta con curvas tangentes a ambas.
+
+  Hacía falta porque una forma geométrica con los vértices redondeados no tiene
+  ninguna esquina que detectar: sus vértices son arcos, no discontinuidades. Sin
+  esquinas, el contorno entero se ajustaba como una curva continua y sus lados
+  rectos se disolvían dentro. Medido sobre un símbolo real: **el 99% de su
+  perímetro era recto dentro de 0,25 px y salía casi todo como cúbicas**.
+
+### Corregido
+
+- Un rectángulo redondeado de 160×80 se aceptaba como elipse y perdía sus cuatro
+  lados rectos. El límite relativo del ajuste de formas era razonable para un
+  punto de 8 px pero demasiado generoso para una forma grande; ahora depende del
+  tamaño, porque en una mancha pequeña el ráster no da para distinguir un
+  círculo de un polígono suave y en una grande sobra información.
+
+### Notas de método
+
+Cuatro condiciones hicieron falta para que un tramo cuente como recto, y cada
+una salió de un fallo medido:
+
+1. **Distancia a la cuerda** dentro de la tolerancia de ajuste.
+2. **Cuerda y arco casi iguales.** Sin esto, el recorrido que sube por un lado
+   de un trazo fino, rodea el remate y baja por el otro también queda cerca de
+   su cuerda: se aceptaba como recta y le cortaba la punta. Un asta de 2,4 px
+   pasaba a medir 1,94.
+3. **Giro neto casi nulo.** La distancia a la cuerda por sí sola admite hasta
+   unos 16° de giro, así que una circunferencia se troceaba en rectas.
+4. **Longitud mínima relativa al propio contorno.** Con un mínimo sólo absoluto,
+   en una letra curva aparecían decenas de tramos cortos casi rectos y la
+   palabra salía troceada, con más nodos que antes.
+
+Además, la recta se ajusta a las muestras del tramo en vez de trazarse entre sus
+extremos —la cuerda entre extremos contaminados adelgazaba el trazo— y cada
+tramo se recorta un poco para dejar hueco a la curva del vértice: sin ese
+recorte, un contrapunto de letra salió convertido en un triángulo.
+
+### Medido
+
+Los siete logos del lote siguen por debajo del 1% de error de área. La aspereza
+de curvatura del banco de pruebas baja de 0,326 a 0,247, porque una recta tiene
+curvatura cero. El símbolo que motivó el cambio pasa de `CCCLCCCCC` a `LCCLCCLC`.
+
 ## [0.5.0]
 
 ### Añadido

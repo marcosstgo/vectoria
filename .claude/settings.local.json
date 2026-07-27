@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth *)",
+      "PowerShell(Get-Command *)",
+      "Bash(env)",
+      "Bash(git config *)",
+      "Bash(git --version)",
+      "Bash(git-credential-manager --version)",
+      "PowerShell(winget install *)",
+      "PowerShell(Get-Content *)",
+      "Bash(git push *)",
+      "Bash(git ls-remote *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(/c/Users/marc0/AppData/Local/gh-cli/bin/gh.exe repo *)",
+      "Bash(/c/Users/marc0/AppData/Local/gh-cli/bin/gh.exe release *)",
+      "Bash(tasklist //FI \"IMAGENAME eq electron.exe\")",
+      "PowerShell(Get-Process *)"
+    ]
+  }
+}

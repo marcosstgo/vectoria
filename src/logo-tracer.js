@@ -1061,6 +1061,114 @@ function fitSmoothClosedContour(points, maxError) {
   return fitSpan(open, 0, open.length - 1, tangent, negate(tangent), maxError);
 }
 
+// Tramos del contorno que son rectos dentro de una tolerancia.
+//
+// Hace falta buscarlos aparte de las esquinas, porque una forma geometrica con
+// los vertices redondeados -que es medio catalogo de logos- no tiene ninguna
+// esquina que detectar: sus vertices son arcos, no discontinuidades. Sin
+// esquinas, el contorno entero se ajustaba como una curva continua y sus lados
+// rectos se disolvian dentro de ella. Medido sobre un simbolo real: el 99% de
+// su perimetro era recto dentro de 0,25 px y salia casi todo como cubicas.
+function detectStraightRuns(points, tolerance, minimumLength) {
+  const count = points.length;
+  // Ademas de una longitud minima absoluta, el tramo tiene que ser largo
+  // respecto a su propio contorno.
+  //
+  // Sin la parte relativa, en una letra de trazo curvo aparecen decenas de
+  // tramos cortos casi rectos y cada uno obliga a partir: la palabra del
+  // logotipo salia troceada en secuencias de recta y curva alternadas, con mas
+  // nodos que antes. Como el remuestreo es uniforme, un porcentaje de las
+  // muestras es un porcentaje del perimetro.
+  const minimumSamples = Math.max(minimumLength, Math.ceil(count * 0.06));
+  if (count < minimumSamples * 2) return [];
+
+  // Un tramo es recto si sus puntos quedan cerca de la cuerda Y ademas la
+  // cuerda mide casi lo mismo que el arco.
+  //
+  // La segunda condicion no es redundante: en un trazo fino, el recorrido que
+  // sube por un lado, da la vuelta al remate y baja por el otro tambien queda
+  // cerca de su propia cuerda, y sin este control se aceptaba como recta y le
+  // cortaba la punta al trazo. Se detecto porque un asta de 2,4 px pasaba a
+  // medir 1,94.
+  const straight = (from, to) => {
+    const a = points[from % count];
+    const b = points[to % count];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const chord = Math.hypot(dx, dy);
+    if (chord < EPSILON) return false;
+    let arc = 0;
+    let worst = 0;
+    for (let index = from; index <= to; index += 1) {
+      const point = points[index % count];
+      worst = Math.max(worst, Math.abs((point.x - a.x) * dy - (point.y - a.y) * dx) / chord);
+      if (worst > tolerance) return false;
+      if (index > from) {
+        const previous = points[(index - 1) % count];
+        arc += Math.hypot(point.x - previous.x, point.y - previous.y);
+      }
+    }
+    if (chord / arc <= 0.995) return false;
+
+    // Y el giro neto entre los dos extremos tiene que ser casi nulo.
+    //
+    // La tolerancia por si sola no basta: un arco de circunferencia cumple la
+    // distancia a la cuerda mientras la flecha quepa en el margen, y con esa
+    // condicion admite hasta unos 16 grados de giro. El resultado era que una
+    // circunferencia se troceaba en rectas. Una recta de verdad no gira, mida
+    // lo que mida, asi que esta condicion no le afecta.
+    const span = Math.max(2, Math.min(6, Math.floor((to - from) / 4)));
+    const first = normalize(subtract(points[(from + span) % count], points[from % count]));
+    const last = normalize(subtract(points[to % count], points[(to - span) % count]));
+    const netTurn = Math.abs(Math.atan2(
+      first.x * last.y - first.y * last.x,
+      dot(first, last),
+    ));
+    return netTurn < 0.07;
+  };
+
+  // Se empieza a recorrer desde el punto de giro mas cerrado. Ese punto esta
+  // dentro de un vertice redondeado, que es justo donde un tramo recto termina,
+  // asi que el barrido no parte ningun tramo por la mitad.
+  let seed = 0;
+  let tightest = -Infinity;
+  for (let index = 0; index < count; index += 1) {
+    const previous = points[(index - 1 + count) % count];
+    const next = points[(index + 1) % count];
+    const incoming = normalize(subtract(points[index], previous));
+    const outgoing = normalize(subtract(next, points[index]));
+    const turn = Math.abs(Math.atan2(
+      incoming.x * outgoing.y - incoming.y * outgoing.x,
+      dot(incoming, outgoing),
+    ));
+    if (turn > tightest) { tightest = turn; seed = index; }
+  }
+
+  const runs = [];
+  let start = 0;
+  while (start < count) {
+    let end = start + 2;
+    while (end < start + count && straight(seed + start, seed + end)) end += 1;
+    end -= 1;
+    if (end - start >= minimumSamples) {
+      // Se recorta un poco cada extremo. Dos motivos: los ultimos puntos son
+      // donde la rectitud estaba al limite, y sobre todo hay que dejar hueco
+      // entre tramos consecutivos para la curva del vertice. Sin el recorte, un
+      // tramo empezaba justo donde terminaba el anterior, el vertice se quedaba
+      // sin muestras y las rectas se encadenaban cortandolo: el contrapunto de
+      // una letra salio convertido en un triangulo.
+      const trim = Math.min(3, Math.floor((end - start) / 8));
+      const from = start + trim;
+      const to = end - trim;
+      if (to - from >= minimumSamples * 0.6) {
+        runs.push({ from: (seed + from) % count, to: (seed + to) % count, length: to - from });
+      }
+    }
+    start = end > start ? end + 1 : start + 1;
+  }
+  return runs;
+}
+
 // Con esquinas: el contorno se parte en tramos y cada tramo se ajusta con
 // tangentes de un solo lado.
 //
@@ -1084,6 +1192,108 @@ function fitContourWithCorners(points, corners, maxError) {
     const rightTangent = endTangent(segment, segment.length - 1, 0);
     fitSpan(segment, 0, segment.length - 1, leftTangent, rightTangent, maxError)
       .forEach((curve) => curves.push(curve));
+  }
+  return curves;
+}
+
+// Ajuste con tramos rectos explicitos.
+//
+// Cada tramo recto se emite como una recta exacta, y el hueco entre dos rectas
+// -el vertice redondeado- se ajusta con curvas cuyas tangentes son las
+// direcciones de esas dos rectas. Asi el arco entra y sale tangente a los
+// lados, que es como se dibuja un vertice redondeado, y no hay que fiarlo a que
+// el ajuste por minimos cuadrados acierte por su cuenta.
+function fitContourWithLines(points, corners, runs, maxError) {
+  const count = points.length;
+  const curves = [];
+  const cornerSet = new Set(corners);
+
+  // La recta se ajusta a las muestras del tramo, no se traza entre sus dos
+  // extremos.
+  //
+  // El tramo se extiende mientras la desviacion lo permita, asi que sus
+  // extremos se meten un poco dentro del vertice, donde el contorno ya esta
+  // girando. La cuerda entre esos dos puntos corta hacia dentro de la forma:
+  // sobre un asta de 2,4 px la adelgazaba a 1,94. Un ajuste ortogonal sigue la
+  // parte recta, que es la mayoria de las muestras, y despues se proyectan los
+  // extremos sobre esa recta.
+  const solved = runs.map((run) => {
+    const indices = [];
+    const span = (run.to - run.from + count) % count;
+    for (let offset = 0; offset <= span; offset += 1) indices.push((run.from + offset) % count);
+    let line = fitLine(points, indices);
+    // Una pasada robusta: se descartan las muestras contaminadas del vertice y
+    // se reajusta con las que de verdad son rectas.
+    const clean = indices.filter((index) => {
+      const relative = subtract(points[index], line.point);
+      return Math.abs(relative.x * -line.direction.y + relative.y * line.direction.x) <= maxError * 0.6;
+    });
+    if (clean.length >= Math.max(6, indices.length * 0.5)) line = fitLine(points, clean);
+    const project = (point) => {
+      const relative = subtract(point, line.point);
+      return add(line.point, scale(line.direction, dot(relative, line.direction)));
+    };
+    return { run, line, start: project(points[run.from]), end: project(points[run.to]) };
+  });
+
+  for (let index = 0; index < solved.length; index += 1) {
+    const current = solved[index];
+    const following = solved[(index + 1) % solved.length];
+    const run = current.run;
+    const next = following.run;
+    const direction = (entry) => normalize(subtract(entry.end, entry.start));
+
+    const start = current.start;
+    const end = current.end;
+    const third = scale(subtract(end, start), 1 / 3);
+    curves.push([start, add(start, third), subtract(end, third), end]);
+
+    // El hueco hasta la siguiente recta.
+    const gap = (next.from - run.to + count) % count;
+    if (gap < 1) {
+      // Sin muestras entre las dos rectas no hay nada que ajustar, pero el
+      // trazado tiene que seguir siendo continuo: se enlazan los extremos.
+      const link = scale(subtract(following.start, current.end), 1 / 3);
+      curves.push([current.end, add(current.end, link), subtract(following.start, link), following.start]);
+      continue;
+    }
+    const segment = [];
+    for (let offset = 0; offset <= gap; offset += 1) segment.push(points[(run.to + offset) % count]);
+    // Los extremos del hueco son los puntos proyectados, para que la curva
+    // arranque exactamente donde termina la recta.
+    segment[0] = current.end;
+    segment[segment.length - 1] = following.start;
+
+    // Si hay una esquina viva dentro del hueco, se parte alli y cada mitad se
+    // ajusta con tangente de un solo lado: un vertice en punta no puede quedar
+    // sujeto a las tangentes de las rectas vecinas.
+    const inside = [];
+    for (let offset = 1; offset < gap; offset += 1) {
+      if (cornerSet.has((run.to + offset) % count)) inside.push(offset);
+    }
+    // Giro entre las dos rectas. Cerca de 180 grados el hueco es un remate de
+    // trazo: los dos lados vuelven sobre si mismos y sus direcciones ya no
+    // sirven de tangente, porque obligarian a la curva a entrar y salir en el
+    // mismo sentido. Se detecto porque un asta de 2,4 px salia con 1,94: la
+    // curva cortaba por la punta.
+    const before = direction(current);
+    const after = direction(following);
+    const turn = Math.abs(Math.atan2(
+      before.x * after.y - before.y * after.x,
+      dot(before, after),
+    ));
+    const hairpin = turn > (150 * Math.PI) / 180;
+
+    const breaks = [0, ...inside, gap];
+    for (let piece = 0; piece + 1 < breaks.length; piece += 1) {
+      const from = breaks[piece];
+      const to = breaks[piece + 1];
+      if (to - from < 1) continue;
+      const leftTangent = from === 0 && !hairpin ? before : endTangent(segment, from, to);
+      const rightTangent = to === gap && !hairpin ? negate(after) : endTangent(segment, to, from);
+      fitSpan(segment, from, to, leftTangent, rightTangent, maxError)
+        .forEach((curve) => curves.push(curve));
+    }
   }
   return curves;
 }
@@ -1634,14 +1844,23 @@ function fitWholeShape(points, corners, tolerance, relativeLimit, smallExtent) {
 
   candidates.forEach((shape) => {
     shape.size = Math.max(shape.radiusX, shape.radiusY);
-    // El limite es relativo al tamano, no absoluto. Medido sobre un logo
-    // caligrafico real: los puntos de las ies se apartan un 13-14% del circulo
-    // perfecto -son trazos a mano, no circunferencias- mientras que el resto de
-    // contornos pequenos, que no son puntos, se apartan un 48% o mas. La
-    // separacion es muy limpia, asi que cualquier umbral intermedio distingue
-    // bien, y quien decide donde ponerlo es el control de regularizacion:
-    // convertir esos puntos en circulos perfectos es idealizar, no medir.
-    shape.limit = Math.max(tolerance * 0.6, shape.size * relativeLimit);
+    // El limite es relativo al tamano, y ademas depende de si la forma es
+    // pequena o grande.
+    //
+    // En una mancha de pocos pixeles el raster no da para distinguir un circulo
+    // de un poligono suave, asi que se admite bastante desviacion: medido sobre
+    // un logo caligrafico real, los puntos de las ies se apartan un 13-14% del
+    // circulo perfecto -son trazos a mano- mientras que los demas contornos
+    // pequenos se apartan un 48% o mas. Ahi decidir a favor del circulo es
+    // idealizar, que es lo que se pide.
+    //
+    // En una forma grande sobra informacion y hay que ser estricto. Con el
+    // limite generoso, un rectangulo redondeado de 160x80 se aceptaba como
+    // elipse y perdia sus cuatro lados rectos.
+    const generous = shape.size * 2 <= smallExtent;
+    shape.limit = generous
+      ? Math.max(tolerance * 0.6, shape.size * relativeLimit)
+      : Math.max(tolerance * 0.6, shape.size * 0.03);
   });
 
   const circleOk = circle && circle.deviation <= circle.limit;
@@ -1933,6 +2152,7 @@ function traceMonochromeLogo(pixels, width, height, settings = {}) {
   let cornerCount = 0;
   let shapeCount = 0;
   let strokeFixed = 0;
+  let straightRuns = 0;
 
   // --- Fase 2: refinar, alisar, regularizar y ajustar ---
   prepared.forEach(({ corners, contour: extracted }) => {
@@ -1986,9 +2206,21 @@ function traceMonochromeLogo(pixels, width, height, settings = {}) {
     const shape = regularize > 0
       ? fitWholeShape(contour, corners, shapeTolerance, shapeRelativeLimit, 40 * sourcePixel)
       : null;
+    // Tramos rectos: tolerancia igual a la del ajuste, así que sólo entra lo
+    // que de todas formas se iba a aproximar dentro de ese margen, y longitud
+    // mínima de 4 px de la imagen original para no convertir en recta cualquier
+    // temblor corto.
+    const runs = shape ? [] : detectStraightRuns(
+      contour,
+      fitError,
+      Math.max(6, Math.round((8 * sourcePixel) / spacing)),
+    );
     const curves = shape
       ? ellipseCurves(shape)
-      : fitContourWithCorners(contour, corners, fitError);
+      : (runs.length >= 2
+        ? fitContourWithLines(contour, corners, runs, fitError)
+        : fitContourWithCorners(contour, corners, fitError));
+    if (runs.length >= 2) straightRuns += runs.length;
     if (shape) shapeCount += 1;
     if (!curves.length) return;
     const commands = buildCommands(curves, fitError * 0.8);
@@ -2046,6 +2278,7 @@ function traceMonochromeLogo(pixels, width, height, settings = {}) {
     cornerCount,
     shapeCount,
     strokeFixed,
+    straightRuns,
     noiseRms,
     fitError: fitError * factor,
     sigma,
@@ -2111,6 +2344,7 @@ module.exports = {
   connectContours,
   resampleClosed,
   detectCorners,
+  detectStraightRuns,
   refineCorners,
   fitContourWithCorners,
 };

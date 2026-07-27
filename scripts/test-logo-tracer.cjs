@@ -547,5 +547,49 @@ function fidelity(result, width, height, inside, samples = 4) {
   report('salida editable', `${drawable.length} objetos (${drawable.join(', ')}), IoU ${iou.toFixed(5)}`);
 }
 
+/* ------------------------------------------------------------------ *
+ * 14. Lados rectos con vértices redondeados
+ * ------------------------------------------------------------------ */
+{
+  // Un rectángulo redondeado no tiene ninguna esquina que detectar: sus
+  // vértices son arcos. Sin buscar los tramos rectos aparte, todo su perímetro
+  // -recto en más del 90%- se ajustaba como una curva continua.
+  const width = 240;
+  const height = 160;
+  const box = { x0: 40, y0: 40, x1: 200, y1: 120 };
+  const radius = 18;
+  const inside = (x, y) => {
+    const cx = Math.min(Math.max(x, box.x0 + radius), box.x1 - radius);
+    const cy = Math.min(Math.max(y, box.y0 + radius), box.y1 - radius);
+    if (x >= box.x0 && x <= box.x1 && y >= box.y0 + radius && y <= box.y1 - radius) return true;
+    if (y >= box.y0 && y <= box.y1 && x >= box.x0 + radius && x <= box.x1 - radius) return true;
+    return Math.hypot(x - cx, y - cy) <= radius;
+  };
+  const pixels = renderShape(width, height, inside);
+  const result = trace(pixels, width, height).result;
+  assert.ok(result, 'El rectángulo redondeado debe vectorizarse.');
+
+  const data = extractPathData(result.svg);
+  const lines = (data.match(/L/g) || []).length;
+  const curves = (data.match(/C/g) || []).length;
+  assert.ok(lines >= 4, `Los cuatro lados deberían ser rectas y sólo salieron ${lines}.`);
+  assert.ok(curves <= 10, `Los vértices deberían ser 4 arcos cortos y salieron ${curves} curvas.`);
+
+  // Y los lados tienen que estar donde toca, no cortados hacia dentro.
+  const subpaths = flattenPath(data);
+  let top = null;
+  let bottom = null;
+  for (let step = 0; step <= height * 16; step += 1) {
+    const y = step / 16;
+    if (isInside(subpaths, 120, y)) { if (top === null) top = y; bottom = y; }
+  }
+  assert.ok(Math.abs(top - box.y0) < 0.25, `Lado superior en ${top.toFixed(2)} en lugar de ${box.y0}.`);
+  assert.ok(Math.abs(bottom - box.y1) < 0.25, `Lado inferior en ${bottom.toFixed(2)} en lugar de ${box.y1}.`);
+
+  const { iou } = fidelity(result, width, height, inside);
+  assert.ok(iou > 0.998, `Fidelidad insuficiente: IoU ${iou.toFixed(5)}.`);
+  report('rectángulo redondeado', `${lines} rectas y ${curves} curvas, lados a ${Math.abs(top - box.y0).toFixed(2)} px, IoU ${iou.toFixed(5)}`);
+}
+
 console.log('Vectoria Logo: todas las pruebas de geometria pasan.');
 console.log(results.join('\n'));
