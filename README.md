@@ -113,14 +113,11 @@ También puedes iniciar la aplicación con doble clic en `Iniciar Vectoria.cmd`.
 
 ## Alcance de esta versión
 
-Esta versión incluye trazado multicolor con VTracer, motor propio para logos de una tinta (con y sin transparencia), limpieza de fondo, comparación interactiva, tres perfiles y exportación SVG/PDF. ImageTracerJS se conserva como respaldo automático.
+Cincel cubre logos de tintas planas: con transparencia o sobre fondo sólido, de una o varias tintas, con detección de esquinas, autocalibrado según la calidad del archivo, regularización, círculos y elipses exactos, tramos rectos y salida agrupada para editar. VTracer se encarga de ilustraciones y fotografías, e ImageTracerJS queda como respaldo.
 
-Pendiente para una fase posterior:
+## Qué falta
 
-- **Tintas que comparten borde.** El trazado por tintas funciona mientras cada una tenga su propio contorno. Cuando dos colores se tocan haría falta una topología común para que no queden ni huecos ni solapes en la costura.
-- **Enderezado de astas.** Alinear a la vertical o la horizontal exactas los tramos que ya casi lo están, reajustando los vértices compartidos. Es lo que separa un trazado limpio de uno con astas ligeramente inclinadas.
-- **Detección de círculos y arcos**, para que una circunferencia salga como tal y no como cuatro cúbicas ajustadas.
-- **Edición manual de nodos y regiones.**
+Lo pendiente está en [ROADMAP.md](ROADMAP.md), ordenado por lo que más mejora el motor y con la forma de comprobar cada cosa. El hueco más claro: dos tintas que comparten borde dejan huecos o solapes en la costura.
 
 ## Desarrollo
 
