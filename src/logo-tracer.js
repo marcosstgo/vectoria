@@ -2254,10 +2254,10 @@ function traceMonochromeLogo(pixels, width, height, settings = {}) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${output.width}" height="${output.height}" viewBox="0 0 ${output.width} ${output.height}">${pathMarkup}</svg>`;
 
   const label = analysis.mode === 'multi'
-    ? 'Vectoria Logo · varias tintas'
+    ? 'Cincel · varias tintas'
     : analysis.mode === 'matte'
-      ? 'Vectoria Logo · mate sobre fondo sólido'
-      : 'Vectoria Logo · contorno subpíxel';
+      ? 'Cincel · mate sobre fondo sólido'
+      : 'Cincel · contorno subpíxel';
   // La calidad del borde del archivo se informa en la interfaz: si sale
   // "borde duro", el limite no esta en el trazador sino en el PNG de partida,
   // y conviene conseguir el original en mayor resolucion.
@@ -2329,7 +2329,7 @@ function traceLogo(pixels, width, height, settings = {}) {
     svg,
     inkCount: inks.length,
     inks: inks.map((ink) => ink.hex),
-    engine: `Vectoria Logo · ${layers.length} tintas · ${totals.cornerCount} esquinas`,
+    engine: `Cincel · ${layers.length} tintas · ${totals.cornerCount} esquinas`,
     analysis,
   };
 }

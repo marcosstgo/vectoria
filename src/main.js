@@ -206,7 +206,7 @@ ipcMain.handle('trace-vtracer', async (_event, payload) => {
     multipass: true,
     multipassIterations: 3,
   });
-  return { svg, engine: 'VTracer · curvas spline', workingScale: plan.scale };
+  return { svg, engine: 'VTracer · curvas spline (imagen no apta para Cincel)', workingScale: plan.scale };
 });
 
 ipcMain.handle('save-svg', async (_event, { svg, suggestedName }) => {

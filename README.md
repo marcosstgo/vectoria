@@ -4,9 +4,11 @@ Aplicación de escritorio para convertir imágenes JPG, PNG, BMP, GIF y WebP en 
 
 ![Captura de Vectoria](docs/screenshot.png)
 
-El modo **Logo** detecta automáticamente los archivos que son un logo de tintas planas —con transparencia, sobre fondo sólido, y de una o varias tintas— y los trata con un motor propio pensado para tipografía. Las ilustraciones y fotografías siguen usando VTracer.
+El modo **Logo** detecta automáticamente los archivos que son un logo de tintas planas —con transparencia, sobre fondo sólido, y de una o varias tintas— y los trata con **Cincel**, el motor de trazado propio de Vectoria, pensado para tipografía. Las ilustraciones y fotografías usan VTracer.
 
-## Cómo funciona el motor de logos
+## Cincel, el motor de logos
+
+Cincel es código propio: unas 2.500 líneas entre `src/logo-tracer.js` y `src/resample.js`. No envuelve ninguna biblioteca de trazado; el contorno, las esquinas, la regularización y el ajuste de curvas son suyos. El nombre viene de lo que hace: sacar una forma limpia de un bloque tosco, quitando lo que no pertenece.
 
 1. **Resolución de trabajo.** Antes de trazar, la imagen se lleva a unos 1800 px de lado mayor con un núcleo de reconstrucción Mitchell (ampliar) o Lanczos-3 (reducir), con alfa premultiplicado. Las ampliaciones se redondean a factor entero para no introducir fase fraccionaria en los bordes rectos. Un logo pequeño trazado a resolución nativa tiene el antialias comprimido en un solo píxel, y ahí es donde se pierden las astas finas y los contrapuntos.
 2. **Campo de cobertura.** Con transparencia se usa el canal alfa, que ya es cobertura de área. Sin transparencia se estima el color de fondo y se proyecta cada píxel sobre el eje fondo-tinta, lo que da un umbral sin sesgo hacia astas más gruesas o más delgadas.

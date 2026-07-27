@@ -591,5 +591,5 @@ function fidelity(result, width, height, inside, samples = 4) {
   report('rectángulo redondeado', `${lines} rectas y ${curves} curvas, lados a ${Math.abs(top - box.y0).toFixed(2)} px, IoU ${iou.toFixed(5)}`);
 }
 
-console.log('Vectoria Logo: todas las pruebas de geometria pasan.');
+console.log('Cincel: todas las pruebas de geometria pasan.');
 console.log(results.join('\n'));

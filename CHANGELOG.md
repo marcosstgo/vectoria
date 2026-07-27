@@ -3,6 +3,31 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado según [SemVer](https://semver.org/lang/es/).
 
+## [0.7.0]
+
+### Añadido
+
+- **El motor de trazado de logos ahora se llama Cincel.** Es código propio —unas
+  2.500 líneas entre `logo-tracer.js` y `resample.js`— y no envuelve ninguna
+  biblioteca de trazado: el contorno subpíxel, las esquinas, el autocalibrado,
+  la regularización y el ajuste de curvas son suyos.
+
+  El nombre viene de lo que hace: sacar una forma limpia de un bloque tosco,
+  quitando lo que no pertenece. Aparece en la etiqueta del motor de la barra
+  inferior, en el diálogo Acerca de y en el README.
+
+- **Atribuciones en el diálogo Acerca de**, con la licencia de cada componente
+  de terceros y para qué sirve. Con licencia MIT conservar el aviso de copyright
+  es un requisito, no una cortesía, y hasta ahora sólo estaba en
+  `THIRD_PARTY_NOTICES.md`, que no abre nadie.
+
+  El diálogo separa además lo propio de lo ajeno: tal como estaba daba a
+  entender que todo el programa era de terceros. VTracer sólo entra cuando la
+  imagen no es un logo de tintas planas.
+
+- Logotipo completo centrado en el diálogo Acerca de, y el símbolo en la barra
+  de título. Los SVG originales quedan en `docs/`.
+
 ## [0.6.0]
 
 ### Añadido

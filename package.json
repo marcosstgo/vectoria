@@ -1,6 +1,6 @@
 {
   "name": "vectoria",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Vectorizador local de imágenes con exportación SVG y PDF",
   "main": "src/main.js",
   "private": true,
