@@ -4,6 +4,10 @@
   --teal: #246b72;
   --teal-deep: #194e54;
   --gold: #e4a94b;
+  /* Verde de la marca. En la barra de título, que es oscura, la hoja se pinta
+     con una versión aclarada del mismo tono para que se lea. */
+  --brand-deep: #243a34;
+  --brand: #8fb7a6;
   --paper: #f4f7f5;
   --white: #ffffff;
   --line: #d9e1de;
@@ -38,9 +42,11 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(228, 169, 75
   -webkit-app-region: drag;
 }
 
-.brand-mark { width: 26px; height: 26px; margin-right: 9px; color: var(--gold); }
-.brand-mark svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.7; }
-.brand-mark circle { fill: var(--gold); stroke: var(--ink); }
+/* La hoja tiene proporción 229x167, así que la caja la respeta: cuadrada
+   dejaba la marca centrada con aire arriba y abajo y se veía pequeña.
+   El color va por currentColor para que herede el de la barra. */
+.brand-mark { width: 27px; height: 20px; margin-right: 10px; color: var(--brand); }
+.brand-mark svg { width: 100%; height: 100%; display: block; }
 .brand-copy { display: flex; align-items: baseline; gap: 9px; letter-spacing: .01em; }
 .brand-copy strong { font-family: Georgia, "Times New Roman", serif; font-size: 18px; font-weight: 600; }
 .brand-copy span { color: #9fb2b7; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
