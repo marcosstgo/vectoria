@@ -236,18 +236,27 @@ button:disabled { opacity: .42; cursor: default; }
 .format-card strong { font-size: 15px; margin-bottom: 5px; }
 .format-card small { color: var(--ink-soft); line-height: 1.5; }
 .help-modal { width: min(520px,92vw); }
-.about-modal { width: min(440px,92vw); }
+/* Bloque de identidad centrado arriba y los datos alineados a la izquierda
+   debajo: son dos zonas distintas y conviene que se lean como tales. */
+.about-modal { width: min(440px,92vw); text-align: center; }
+.about-modal .modal-close { text-align: initial; }
 /* El logotipo lleva la palabra dentro, así que el diálogo no repite el nombre
    como título: el propio logo lo dice. */
-.about-logo { width: 190px; margin: 4px 0 14px; }
+.about-logo { width: 190px; margin: 6px auto 16px; }
 .about-logo svg { width: 100%; height: auto; display: block; }
-.about-release { margin: 0 0 10px; color: var(--ink-soft); font-size: 13px; }
+.about-release { margin: 0 0 12px; color: var(--ink-soft); font-size: 13px; }
 .about-version { padding: 2px 8px; border: 1px solid var(--line); border-radius: 20px; color: var(--ink); font-size: 12px; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
 .about-author { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); line-height: 1.6; }
 .about-author a { color: var(--teal); }
+.about-engine { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.about-engine p { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.65; }
+.about-engine code { padding: 1px 5px; border-radius: 4px; background: var(--muted); color: var(--ink); font-size: 11px; }
 .about-credits { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
 .about-credits-title { margin: 0 0 8px; color: var(--ink-soft); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
-.about-credits ul { margin: 0; padding: 0; list-style: none; }
+/* La lista va alineada a la izquierda aunque el diálogo esté centrado: cinco
+   renglones de longitudes distintas centrados se leen como un bloque
+   desordenado. Se centra el bloque entero, no cada línea. */
+.about-credits ul { display: inline-block; margin: 0; padding: 0; list-style: none; text-align: left; }
 .about-credits li { color: var(--ink-soft); font-size: 12px; line-height: 1.8; }
 .about-credits a { color: var(--teal); text-decoration: none; }
 .about-credits a:hover { text-decoration: underline; }
