@@ -4,6 +4,7 @@ artifacts/
 output/
 dist/
 *.log
+.claude/
 
 # Sistema operativo
 Thumbs.db
